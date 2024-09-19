@@ -6,6 +6,7 @@ public class ParallelMultiplicationAlgo : IMultiplicationAlgo
     {
         var rows = left.GetLength(0);
         var columns = right.GetLength(1);
+        var sameDimension = left.GetLength(1);
         var result = new int[rows, columns];
         var threads = new Thread[Environment.ProcessorCount];
         var chunkSize = (rows / threads.Length) + 1;
@@ -18,7 +19,7 @@ public class ParallelMultiplicationAlgo : IMultiplicationAlgo
                 {
                     for (var k = 0; k < columns; ++k)
                     {
-                        for (var l = 0; l < columns; ++l)
+                        for (var l = 0; l < sameDimension; ++l)
                         {
                             result[j, k] += left[j, l] * right[l, k];
                         }
