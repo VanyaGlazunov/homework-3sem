@@ -1,5 +1,11 @@
-using MatrixMultiplication;
+// Copyright (c) 2024
+//
+// Use of this source code is governed by an MIT license
+// that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT.
+
 using BenchmarkDotNet.Running;
+using MatrixMultiplication;
 
 if (args.Length == 1 && args[0] == "-b")
 {

@@ -16,6 +16,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <AdditionalFiles Include="..\stylecop.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="Samples/**">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

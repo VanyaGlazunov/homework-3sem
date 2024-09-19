@@ -1,5 +1,14 @@
+// Copyright (c) 2024
+//
+// Use of this source code is governed by an MIT license
+// that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT.
+
 namespace MatrixMultiplication;
 
+/// <summary>
+/// Parallel matrix multiplication algorithm.
+/// </summary>
 public class ParallelMultiplicationAlgo : IMultiplicationAlgo
 {
     public int[,] Multiply(int[,] left, int[,] right)
