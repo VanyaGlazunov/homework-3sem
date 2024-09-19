@@ -1,6 +1,6 @@
 namespace MatrixMultiplication.Tests;
 
-public class Tests
+public class MatrixMultiplicationTests
 {
     public static IEnumerable<TestCaseData> MultiplierAlgo()
     {
@@ -43,5 +43,4 @@ public class Tests
         int[,] right = MatrixMultiplier.InputMatrix("Samples/Test4/right.txt");
         Assert.Throws<ArgumentException>(() => MatrixMultiplier.Multiply(left, right, multiplicationAlgo));
     }
-
 }
