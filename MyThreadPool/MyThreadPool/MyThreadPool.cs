@@ -4,10 +4,10 @@ namespace MyThreadPool;
 
 public class MyThreadPool
 {
-    private int numberOfThreads;
-    private ConcurrentQueue<Action> tasks = new ();
-    private Thread[] threads;
-    private CancellationTokenSource cancellationTokenSource = new ();
+    private readonly ConcurrentQueue<Action> tasks = new ();
+    private readonly int numberOfThreads;
+    private readonly Thread[] threads;
+    private readonly CancellationTokenSource cancellationTokenSource = new ();
 
     public MyThreadPool(int numberOfThreads)
     {
@@ -15,17 +15,38 @@ public class MyThreadPool
         this.threads = new Thread[this.numberOfThreads];
         for (int i = 0; i < this.numberOfThreads; ++i)
         {
-            this.threads[i] = new (() => {
+            this.threads[i] = new (() =>
+            {
                 var cancellationToken = this.cancellationTokenSource.Token;
-                while (!cancellationToken.IsCancellationRequested && this.tasks.TryDequeue(out Action? task))
+                while (!this.cancellationTokenSource.IsCancellationRequested)
                 {
-                    task.Invoke();
+                    if (this.tasks.TryDequeue(out Action? task))
+                    {
+                        task.Invoke();
+                    }
                 }
             });
         }
     }
 
-    IMyTask<T> Submit<T>(Func<T> task) {
-        throw new NotImplementedException();
+    public IMyTask<T> Submit<T>(Func<T> task)
+    {
+        var newMyTask = new MyTask<T>(this, task, this.cancellationTokenSource.Token);
+        this.tasks.Enqueue(() => newMyTask.Start());
+        return newMyTask;
+    }
+
+    public void AddTask<T>(MyTask<T> task)
+    {
+        this.tasks.Enqueue(() => task.Start());
+    }
+
+    public void Shutdown()
+    {
+        this.cancellationTokenSource.Cancel();
+        for (int i = 0; i < this.numberOfThreads; ++i)
+        {
+            this.threads[i].Join();
+        }
     }
 }

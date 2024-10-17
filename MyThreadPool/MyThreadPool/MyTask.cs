@@ -1,55 +1,78 @@
+using System.Collections.Concurrent;
+
 namespace MyThreadPool;
 
-public class MyTask<TResult>(Func<TResult> func, CancellationToken cancellationToken) : IMyTask<TResult>
+public class MyTask<TResult>(MyThreadPool threadPool, Func<TResult> func, CancellationToken cancellationToken) : IMyTask<TResult>
 {
     private readonly Func<TResult> func = func;
     private readonly object lockObject = new ();
+    private readonly ConcurrentQueue<Action> continueWithTasks = new ();
+    private readonly MyThreadPool threadPool = threadPool;
+    private readonly CancellationToken cancellationToken = cancellationToken;
     private AggregateException? aggregateException;
+    private TResult? result;
 
     public TResult? Result
     {
         get
         {
-            if (aggregateException != null)
+            if (!this.IsCompleted)
             {
-                throw aggregateException;
+                this.Start();
             }
 
-            if (!IsCompleted)
+            if (this.aggregateException != null)
             {
-                Start();
+                throw this.aggregateException;
             }
 
-            return Result;
+            return this.result;
         }
-        set => Result = value;
+        private set => this.result = value;
     }
 
     public bool IsCompleted { get; private set; }
 
-    public IMyTask<TNewResult> ContinueWith<TNewResult>(Func<TResult, TNewResult> func)
+    public IMyTask<TNewResult> ContinueWith<TNewResult>(Func<TResult?, TNewResult> func)
     {
-        throw new NotImplementedException();
+        var newFunc = () => func(this.Result);
+        var newMyTask = new MyTask<TNewResult>(this.threadPool, newFunc, this.cancellationToken);
+        if (!this.cancellationToken.IsCancellationRequested)
+        {
+            this.continueWithTasks.Enqueue(() => this.threadPool.AddTask(newMyTask));
+        }
+
+        return newMyTask;
     }
 
     public void Start()
     {
-        if (!IsCompleted)
+        if (!this.IsCompleted)
         {
-            lock (lockObject)
+            lock (this.lockObject)
             {
-                if (!IsCompleted)
+                if (!this.IsCompleted)
                 {
                     try
                     {
-                        Result = func();
+                        this.cancellationToken.ThrowIfCancellationRequested();
+                        this.Result = this.func();
                     }
                     catch (Exception e)
                     {
-                        aggregateException = new ("Task failed", e);
+                        this.aggregateException = new ("Task failed", e);
                     }
-
-                    IsCompleted = true;
+                    finally
+                    {
+                        this.IsCompleted = true;
+                        for (; !this.continueWithTasks.IsEmpty && !this.cancellationToken.IsCancellationRequested;)
+                        {
+                            if (this.continueWithTasks.TryDequeue(out Action? continueWithTask))
+                            {
+                                continueWithTask.Invoke();
+                            }
+                        }
+                    }
                 }
             }
         }
