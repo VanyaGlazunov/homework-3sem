@@ -20,9 +20,9 @@ public class Program
             var left = MatrixMultiplier.InputMatrix(args[0]);
             var right = MatrixMultiplier.InputMatrix(args[0]);
             var result = MatrixMultiplier.Multiply(left, right, new ParallelMultiplicationAlgo());
-            for (int i = 0; i < result.GetLength(0); ++i)
+            for (var i = 0; i < result.GetLength(0); ++i)
             {
-                for (int j = 0; j < result.GetLength(1); ++j)
+                for (var j = 0; j < result.GetLength(1); ++j)
                 {
                     Console.WriteLine($"{result[i, j]} ");
                 }
