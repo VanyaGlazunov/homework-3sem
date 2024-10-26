@@ -18,6 +18,7 @@ public class MyTask<TResult>(MyThreadPool threadPool, Func<TResult> func, Cancel
         {
             if (!this.IsCompleted)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 this.Start();
             }
 
@@ -37,10 +38,7 @@ public class MyTask<TResult>(MyThreadPool threadPool, Func<TResult> func, Cancel
     {
         var newFunc = () => func(this.Result);
         var newMyTask = new MyTask<TNewResult>(this.threadPool, newFunc, this.cancellationToken);
-        if (!this.cancellationToken.IsCancellationRequested)
-        {
-            this.continueWithTasks.Enqueue(() => this.threadPool.AddTask(newMyTask));
-        }
+        this.continueWithTasks.Enqueue(() => this.threadPool.AddTask(newMyTask));
 
         return newMyTask;
     }
@@ -55,7 +53,6 @@ public class MyTask<TResult>(MyThreadPool threadPool, Func<TResult> func, Cancel
                 {
                     try
                     {
-                        this.cancellationToken.ThrowIfCancellationRequested();
                         this.Result = this.func();
                     }
                     catch (Exception e)

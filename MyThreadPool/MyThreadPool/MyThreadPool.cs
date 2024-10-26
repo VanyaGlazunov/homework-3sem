@@ -5,15 +5,16 @@ namespace MyThreadPool;
 public class MyThreadPool
 {
     private readonly ConcurrentQueue<Action> tasks = new ();
-    private readonly int numberOfThreads;
     private readonly Thread[] threads;
     private readonly CancellationTokenSource cancellationTokenSource = new ();
 
+    public int ThreadCount { get; private set; }
+
     public MyThreadPool(int numberOfThreads)
     {
-        this.numberOfThreads = numberOfThreads;
-        this.threads = new Thread[this.numberOfThreads];
-        for (int i = 0; i < this.numberOfThreads; ++i)
+        this.ThreadCount = numberOfThreads;
+        this.threads = new Thread[this.ThreadCount];
+        for (int i = 0; i < this.ThreadCount; ++i)
         {
             this.threads[i] = new (() =>
             {
@@ -26,6 +27,11 @@ public class MyThreadPool
                     }
                 }
             });
+        }
+
+        foreach (var thread in this.threads)
+        {
+            thread.Start();
         }
     }
 
@@ -44,7 +50,7 @@ public class MyThreadPool
     public void Shutdown()
     {
         this.cancellationTokenSource.Cancel();
-        for (int i = 0; i < this.numberOfThreads; ++i)
+        for (int i = 0; i < this.ThreadCount; ++i)
         {
             this.threads[i].Join();
         }
