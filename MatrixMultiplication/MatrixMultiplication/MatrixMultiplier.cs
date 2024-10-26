@@ -7,7 +7,7 @@
 namespace MatrixMultiplication;
 
 /// <summary>
-/// Povides methods for matrix multiplication.
+/// Implements methods for matrix multiplication.
 /// </summary>
 public static class MatrixMultiplier
 {
@@ -18,15 +18,17 @@ public static class MatrixMultiplier
     /// <returns>two-dimensional array representing the given matrix.</returns>
     public static int[,] InputMatrix(string filepath)
     {
-        var streamReader = new StreamReader(filepath);
-        var dimensions = streamReader.ReadLine()!.Trim().Split();
+        using var streamReader = new StreamReader(filepath);
+        var input = streamReader.ReadLine() ?? throw new ArgumentException("Wrong input file structure!");
+        var dimensions = input.Trim().Split();
         var rows = int.Parse(dimensions[0]);
         var columns = int.Parse(dimensions[1]);
-        int[,] matrix = new int[rows, columns];
-        for (int i = 0; i < rows; ++i)
+        var matrix = new int[rows, columns];
+        for (var i = 0; i < rows; ++i)
         {
-            var row = streamReader.ReadLine()!.Trim().Split().Select(x => int.Parse(x)).ToArray();
-            for (int j = 0; j < columns; ++j)
+            input = streamReader.ReadLine() ?? throw new ArgumentException("Wrong input file structure!");
+            var row = input.Trim().Split().Select(x => int.Parse(x)).ToArray();
+            for (var j = 0; j < columns; ++j)
             {
                 matrix[i, j] = row[j];
             }

@@ -11,36 +11,39 @@ public class MatrixMultiplicationTests
     [TestCaseSource(nameof(MultiplierAlgo))]
     public void Multiply1x1Matricies(IMultiplicationAlgo multiplicationAlgo)
     {
-        int[,] left = MatrixMultiplier.InputMatrix("Samples/Test1/left.txt");
-        int[,] right = MatrixMultiplier.InputMatrix("Samples/Test1/right.txt");
-        int[,] ans = MatrixMultiplier.InputMatrix("Samples/Test1/ans.txt");
-        Assert.That(MatrixMultiplier.Multiply(left, right, multiplicationAlgo), Is.EqualTo(ans));
+        var left = MatrixMultiplier.InputMatrix("Samples/Test1/left.txt");
+        var right = MatrixMultiplier.InputMatrix("Samples/Test1/right.txt");
+        var expected = MatrixMultiplier.InputMatrix("Samples/Test1/ans.txt");
+        var actual = MatrixMultiplier.Multiply(left, right, multiplicationAlgo);
+        Assert.That(actual, Is.EqualTo(expected));
     }
 
     [TestCaseSource(nameof(MultiplierAlgo))]
     public void MultiplyMatrixByVector(IMultiplicationAlgo multiplicationAlgo)
     {
-        int[,] left = MatrixMultiplier.InputMatrix("Samples/Test2/left.txt");
-        int[,] right = MatrixMultiplier.InputMatrix("Samples/Test2/right.txt");
-        int[,] ans = MatrixMultiplier.InputMatrix("Samples/Test2/ans.txt");
-        Assert.That(MatrixMultiplier.Multiply(left, right, multiplicationAlgo), Is.EqualTo(ans));
+        var left = MatrixMultiplier.InputMatrix("Samples/Test2/left.txt");
+        var right = MatrixMultiplier.InputMatrix("Samples/Test2/right.txt");
+        var expected = MatrixMultiplier.InputMatrix("Samples/Test2/ans.txt");
+        var actual = MatrixMultiplier.Multiply(left, right, multiplicationAlgo);
+        Assert.That(actual, Is.EqualTo(expected));
     }
 
     [TestCaseSource(nameof(MultiplierAlgo))]
     public void Multiply5x5Matricies(IMultiplicationAlgo multiplicationAlgo)
     {
-        int[,] left = MatrixMultiplier.InputMatrix("Samples/Test3/left.txt");
-        int[,] right = MatrixMultiplier.InputMatrix("Samples/Test3/right.txt");
-        int[,] ans = MatrixMultiplier.InputMatrix("Samples/Test3/ans.txt");
-        Assert.That(MatrixMultiplier.Multiply(left, right, multiplicationAlgo), Is.EqualTo(ans));
+        var left = MatrixMultiplier.InputMatrix("Samples/Test3/left.txt");
+        var right = MatrixMultiplier.InputMatrix("Samples/Test3/right.txt");
+        var expected = MatrixMultiplier.InputMatrix("Samples/Test3/ans.txt");
+        var actual = MatrixMultiplier.Multiply(left, right, multiplicationAlgo);
+        Assert.That(actual, Is.EqualTo(expected));
     }
 
 
     [TestCaseSource(nameof(MultiplierAlgo))]
     public void MultiplyMatriciesWithIncorrectSizeThrowsException(IMultiplicationAlgo multiplicationAlgo)
     {
-        int[,] left = MatrixMultiplier.InputMatrix("Samples/Test4/left.txt");
-        int[,] right = MatrixMultiplier.InputMatrix("Samples/Test4/right.txt");
+        var left = MatrixMultiplier.InputMatrix("Samples/Test4/left.txt");
+        var right = MatrixMultiplier.InputMatrix("Samples/Test4/right.txt");
         Assert.Throws<ArgumentException>(() => MatrixMultiplier.Multiply(left, right, multiplicationAlgo));
     }
 }

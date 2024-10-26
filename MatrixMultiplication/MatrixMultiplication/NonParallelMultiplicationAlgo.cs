@@ -11,17 +11,18 @@ namespace MatrixMultiplication;
 /// </summary>
 public class NonParallelMultiplicationAlgo : IMultiplicationAlgo
 {
+    /// <inheritdoc/>
     public int[,] Multiply(int[,] left, int[,] right)
     {
         var rows = left.GetLength(0);
         var columns = right.GetLength(1);
         var sameDimension = left.GetLength(1);
         var result = new int[rows, columns];
-        for (int i = 0; i < rows; ++i)
+        for (var i = 0; i < rows; ++i)
         {
-            for (int j = 0; j < columns; ++j)
+            for (var j = 0; j < columns; ++j)
             {
-                for (int k = 0; k < sameDimension; ++k)
+                for (var k = 0; k < sameDimension; ++k)
                 {
                     result[i, j] += left[i, k] * right[k, j];
                 }

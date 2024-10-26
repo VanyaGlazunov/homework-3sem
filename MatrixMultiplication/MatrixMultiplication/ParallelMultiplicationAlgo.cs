@@ -11,6 +11,7 @@ namespace MatrixMultiplication;
 /// </summary>
 public class ParallelMultiplicationAlgo : IMultiplicationAlgo
 {
+    /// <inheritdoc/>
     public int[,] Multiply(int[,] left, int[,] right)
     {
         var rows = left.GetLength(0);
