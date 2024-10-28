@@ -1,3 +1,5 @@
+using NUnit.Framework.Constraints;
+
 namespace MyThreadPool.Tests;
 
 public class Tests
@@ -63,7 +65,7 @@ public class Tests
     [Test]
     public void SubmitTaskWithOneContinueTasksReturnsExpectedResult()
     {
-        var task = threadPool.Submit(() => "1").ContinueWith(x => int.Parse(x));
+        var task = threadPool.Submit(() => "1").ContinueWith(x => int.Parse(x!));
         Assert.That(task.Result, Is.EqualTo(1));
     }
 
@@ -89,8 +91,44 @@ public class Tests
     [Test]
     public void SubmitTaskWithChainedContinueTasksReturnsExpectedResult()
     {
-        var task = threadPool.Submit(() => "1").ContinueWith(x => int.Parse(x)).ContinueWith(x => 2 * x + 1);
+        var task = threadPool.Submit(() => "1").ContinueWith(x => int.Parse(x!)).ContinueWith(x => 2 * x + 1);
         Thread.Sleep(50);
         Assert.That(task.Result, Is.EqualTo(3));
+    }
+
+    [Test]
+    public void ResultFuncThrowsExceptionShouldThrowAgregateException()
+    {
+        var task = threadPool.Submit<int>(() => throw new DivideByZeroException());
+        Assert.Throws<AggregateException>(() => {var result = task.Result;});
+    }
+
+    [Test]
+    public void TasksAfterShutdownAreCompleteOrThrowException()
+    {
+        List<IMyTask<int>> tasks = new ();
+        var expected = 1;
+        for (int i = 0; i < 2 * threadPool.ThreadCount; ++i)
+        {
+            threadPool.Submit(() => 
+            {
+                Thread.Sleep(100);
+                return 1;
+            });
+        }
+        Thread.Sleep(100);
+        threadPool.Shutdown();
+        foreach (var task in tasks)
+        {
+            try
+            {
+                var actual = task.Result;
+                Assert.That(actual, Is.EqualTo(expected));
+            }
+            catch (OperationCanceledException)
+            {
+                Assert.Pass();
+            }
+        }
     }
 }
