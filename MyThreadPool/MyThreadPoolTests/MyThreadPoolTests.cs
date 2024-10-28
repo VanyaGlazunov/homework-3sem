@@ -21,7 +21,7 @@ public class Tests
         HashSet<Thread?> threads = [];
         threadPool = new (n);
         List<IMyTask<Thread>> tasks = [];
-        for (int i = 0; i < 2 * n; ++i)
+        for (var i = 0; i < 2 * n; ++i)
         {
             tasks.Add(threadPool.Submit(() => {
                 Thread.Sleep(40);
@@ -46,7 +46,7 @@ public class Tests
     public void SubmitMultipleTasksReturnsExpectedResult()
     {
         List<IMyTask<int>> tasks = [];
-        for (int i = 0; i < threadPool.ThreadCount; ++i)
+        for (var i = 0; i < threadPool.ThreadCount; ++i)
         {
             var localI = i;
             var task = threadPool.Submit(() => {
@@ -56,7 +56,7 @@ public class Tests
             tasks.Add(task);
         }
         Thread.Sleep(101);
-        for (int i = 0; i < threadPool.ThreadCount; ++i)
+        for (var i = 0; i < threadPool.ThreadCount; ++i)
         {
             Assert.That(tasks[i].Result, Is.EqualTo(i));
         }
@@ -74,14 +74,14 @@ public class Tests
     {
         List<IMyTask<int>> tasks = [];
         var task = threadPool.Submit(() => 2);
-        for (int i = 0; i < threadPool.ThreadCount; ++i)
+        for (var i = 0; i < threadPool.ThreadCount; ++i)
         {
             var localI = i;
             var continueTask = task.ContinueWith(x => localI * x);
             tasks.Add(continueTask);
         }
         Thread.Sleep(101);
-        for (int i = 0; i < threadPool.ThreadCount; ++i)
+        for (var i = 0; i < threadPool.ThreadCount; ++i)
         {
             Assert.That(tasks[i].Result, Is.EqualTo(2 * i));
         }
@@ -108,7 +108,7 @@ public class Tests
     {
         List<IMyTask<int>> tasks = new ();
         var expected = 1;
-        for (int i = 0; i < 2 * threadPool.ThreadCount; ++i)
+        for (var i = 0; i < 2 * threadPool.ThreadCount; ++i)
         {
             threadPool.Submit(() => 
             {
