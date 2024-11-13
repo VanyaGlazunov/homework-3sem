@@ -5,13 +5,13 @@
 namespace Lazy;
 
 /// <summary>
-/// Represents single-thread lazy evaluation.
+/// Implements single-thread lazy evaluation.
 /// </summary>
 /// <typeparam name="T">Type of the result of evaluation.</typeparam>
 /// <param name="supplier">Funciton to evaluate.</param>
 public class SingleThreadLazy<T>(Func<T> supplier) : ILazy<T>
 {
-    private readonly Func<T> supplier = supplier ?? throw new ArgumentException("Supplier cannot be null");
+    private Func<T>? supplier = supplier;
     private T? result;
     private bool isReady;
     private Exception? exception;
@@ -23,6 +23,11 @@ public class SingleThreadLazy<T>(Func<T> supplier) : ILazy<T>
         {
             try
             {
+                if (this.supplier is null)
+                {
+                    throw new InvalidOperationException("Supplier is null!");
+                }
+
                 this.result = this.supplier();
             }
             catch (Exception e)
@@ -32,6 +37,7 @@ public class SingleThreadLazy<T>(Func<T> supplier) : ILazy<T>
             }
             finally
             {
+                this.supplier = null;
                 this.isReady = true;
             }
         }

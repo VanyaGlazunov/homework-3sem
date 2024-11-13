@@ -5,14 +5,14 @@
 namespace Lazy;
 
 /// <summary>
-/// Represents Multi-thread lazy evaluation.
+/// Implements Multi-thread lazy evaluation.
 /// </summary>
 /// <typeparam name="T">Type of the result of evalution.</typeparam>
 /// <param name="supplier">Function to evaluate.</param>
 public class MultiThreadLazy<T>(Func<T> supplier) : ILazy<T>
 {
-    private readonly Func<T> supplier = supplier ?? throw new ArgumentException("Supplier cannot be null");
     private readonly Semaphore semaphore = new (1, 1);
+    private Func<T>? supplier = supplier;
     private T? result;
     private Exception? exception;
 
@@ -33,6 +33,11 @@ public class MultiThreadLazy<T>(Func<T> supplier) : ILazy<T>
             {
                 try
                 {
+                    if (this.supplier is null)
+                    {
+                        throw new InvalidOperationException("Supplier is null");
+                    }
+
                     this.result = this.supplier();
                 }
                 catch (Exception e)
@@ -42,6 +47,7 @@ public class MultiThreadLazy<T>(Func<T> supplier) : ILazy<T>
                 }
                 finally
                 {
+                    this.supplier = null;
                     this.isReady = true;
                     this.semaphore.Release();
                 }

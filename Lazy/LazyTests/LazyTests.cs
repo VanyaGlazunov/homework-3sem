@@ -45,7 +45,11 @@ public class Tests
         var firstRun = lazy.Get();
         var secondRun = lazy.Get();
         var thirdRun = lazy.Get();
-        Assert.That(firstRun == secondRun && secondRun == thirdRun, Is.True);
+        Assert.Multiple(() =>
+        {
+            Assert.That(firstRun, Is.EqualTo(secondRun));
+            Assert.That(secondRun, Is.EqualTo(thirdRun));
+        });
     }
 
     [TestCaseSource(nameof(LaziesThrowException))]
@@ -60,18 +64,25 @@ public class Tests
         var expectedResult = 10;
         var initial = 0;
         MultiThreadLazy<int> lazy = new (() => initial += 10);
-        var threads = new Thread[Environment.ProcessorCount];
-        var results = new int[Environment.ProcessorCount];
+        var numberOfThreads = 10;
+        var threads = new Thread[numberOfThreads];
+        var results = new int[numberOfThreads];
+        var manualResetEvent = new ManualResetEvent(false);
         for (int i = 0; i < threads.Length; ++i)
         {
             var localI = i;
-            threads[i] = new (() => results[localI] = lazy.Get());
+            threads[i] = new (() => {
+                manualResetEvent.WaitOne();
+                results[localI] = lazy.Get();
+            });
         }
 
         foreach (var thread in threads)
         {
             thread.Start();
         }
+
+        manualResetEvent.Set();
 
         foreach (var thread in threads)
         {
