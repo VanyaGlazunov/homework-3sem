@@ -1,6 +1,8 @@
-// <copyright file="MultiThreadLazy.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
-// </copyright>
+// Copyright (c) 2024
+//
+// Use of this source code is governed by an MIT license
+// that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT.
 
 namespace Lazy;
 
