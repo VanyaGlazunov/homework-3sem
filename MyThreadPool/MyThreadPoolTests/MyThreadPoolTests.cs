@@ -116,10 +116,9 @@ public class Tests
     }
 
     [Test]
-    public void TasksSubmitedBerforeShutdownAreCompletedAfterShutdownOrThrowException()
+    public void TasksSubmitedBerforeShutdownAreCompletedAfterShutdown()
     {
         List<IMyTask<int>> tasks = new();
-        var expected = 1;
         for (var i = 0; i < 2 * threadPool.ThreadCount; ++i)
         {
             threadPool.Submit(() =>
@@ -128,19 +127,10 @@ public class Tests
                 return 1;
             });
         }
-        Thread.Sleep(100);
         threadPool.Shutdown();
         foreach (var task in tasks)
         {
-            try
-            {
-                var actual = task.Result;
-                Assert.That(actual, Is.EqualTo(expected));
-            }
-            catch (OperationCanceledException)
-            {
-                Assert.Pass();
-            }
+            Assert.That(task.IsCompleted, Is.True);
         }
     }
 }

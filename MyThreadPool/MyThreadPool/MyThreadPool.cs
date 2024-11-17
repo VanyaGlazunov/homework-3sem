@@ -17,7 +17,8 @@ public class MyThreadPool
     private readonly Thread[] threads;
     private readonly CancellationTokenSource cancellationTokenSource = new ();
     private readonly ManualResetEvent shutdownEvent = new (true);
-    private readonly AutoResetEvent wakeUp = new (false);
+    private readonly AutoResetEvent wakeUpEvent = new (false);
+    private readonly ManualResetEvent cancelEvent = new (false);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MyThreadPool"/> class with specified number of running threads.
@@ -49,7 +50,7 @@ public class MyThreadPool
     public int ThreadCount { get; private set; }
 
     /// <summary>
-    /// Shuts down treadpool. All tasks that were submitted before shutdown will be completed, the rest will throw exception when getting result.
+    /// Shuts down treadpool. All tasks that were submitted before shutdown will be completed.
     /// </summary>
     public void Shutdown()
     {
@@ -63,9 +64,9 @@ public class MyThreadPool
         {
             this.cancellationTokenSource.Cancel();
             this.shutdownEvent.Set();
+            this.cancelEvent.Set();
             for (var i = 0; i < this.ThreadCount; ++i)
             {
-                this.threads[i].Interrupt();
                 this.threads[i].Join();
             }
         }
@@ -87,7 +88,7 @@ public class MyThreadPool
 
         var newMyTask = new MyTask<T>(this, task, this.cancellationTokenSource.Token, this.shutdownEvent);
         this.tasks.Enqueue(newMyTask.Start);
-        this.wakeUp.Set();
+        this.wakeUpEvent.Set();
 
         return newMyTask;
     }
@@ -96,19 +97,15 @@ public class MyThreadPool
     {
         while (true)
         {
-            try
-            {
-                this.wakeUp.WaitOne();
-            }
-            catch (ThreadInterruptedException)
-            {
-                break;
-            }
-
+            WaitHandle.WaitAny([this.wakeUpEvent, this.cancelEvent]);
             if (this.tasks.TryDequeue(out var task))
             {
-                this.wakeUp.Set();
+                this.wakeUpEvent.Set();
                 task();
+            }
+            else if (this.cancellationTokenSource.IsCancellationRequested)
+            {
+                break;
             }
         }
     }
