@@ -1,15 +1,20 @@
-using NUnit.Framework.Constraints;
+// Copyright (c) 2024
+//
+// Use of this source code is governed by an MIT license
+// that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT.
 
 namespace MyThreadPool.Tests;
 
 public class Tests
 {
-    private MyThreadPool threadPool;
+    private static readonly int numberOfThreads = 10;
+    private MyThreadPool threadPool = new(numberOfThreads);
 
     [SetUp]
     public void Setup()
     {
-        threadPool = new (Environment.ProcessorCount);
+        threadPool = new(numberOfThreads);
     }
 
     [Test]
@@ -19,16 +24,19 @@ public class Tests
     public void CheckIfThereIsExactlyNThreadsInPool(int n)
     {
         HashSet<Thread?> threads = [];
-        threadPool = new (n);
+        threadPool = new(n);
         List<IMyTask<Thread>> tasks = [];
+        ManualResetEvent manualResetEvent = new (false);
         for (var i = 0; i < 2 * n; ++i)
         {
-            tasks.Add(threadPool.Submit(() => {
-                Thread.Sleep(40);
+            tasks.Add(threadPool.Submit(() =>
+            {
+                manualResetEvent.WaitOne();
                 return Thread.CurrentThread;
             }));
         }
-        Thread.Sleep(2000);
+        manualResetEvent.Set();
+        Thread.Sleep(100);
         threadPool.Shutdown();
         foreach (var task in tasks)
         {
@@ -37,25 +45,28 @@ public class Tests
         Assert.That(threads, Has.Count.EqualTo(n));
     }
 
-    public void SubmitSimpleTaskReturnsExpectedResult() {
+    [Test]
+    public void SubmitSimpleTaskReturnsExpectedResult()
+    {
         var expected = 1;
         var task = threadPool.Submit(() => expected);
         Assert.That(task.Result, Is.EqualTo(expected));
     }
 
+    [Test]
     public void SubmitMultipleTasksReturnsExpectedResult()
     {
         List<IMyTask<int>> tasks = [];
         for (var i = 0; i < threadPool.ThreadCount; ++i)
         {
             var localI = i;
-            var task = threadPool.Submit(() => {
-                Thread.Sleep(100);
+            var task = threadPool.Submit(() =>
+            {
                 return localI;
             });
             tasks.Add(task);
         }
-        Thread.Sleep(101);
+        Thread.Sleep(100);
         for (var i = 0; i < threadPool.ThreadCount; ++i)
         {
             Assert.That(tasks[i].Result, Is.EqualTo(i));
@@ -80,7 +91,7 @@ public class Tests
             var continueTask = task.ContinueWith(x => localI * x);
             tasks.Add(continueTask);
         }
-        Thread.Sleep(101);
+        Thread.Sleep(100);
         for (var i = 0; i < threadPool.ThreadCount; ++i)
         {
             Assert.That(tasks[i].Result, Is.EqualTo(2 * i));
@@ -93,24 +104,25 @@ public class Tests
     {
         var task = threadPool.Submit(() => "1").ContinueWith(x => int.Parse(x!)).ContinueWith(x => 2 * x + 1);
         Thread.Sleep(50);
-        Assert.That(task.Result, Is.EqualTo(3));
+        var expected = 3;
+        Assert.That(task.Result, Is.EqualTo(expected));
     }
 
     [Test]
     public void ResultFuncThrowsExceptionShouldThrowAgregateException()
     {
         var task = threadPool.Submit<int>(() => throw new DivideByZeroException());
-        Assert.Throws<AggregateException>(() => {var result = task.Result;});
+        Assert.Throws<AggregateException>(() => { var result = task.Result; });
     }
 
     [Test]
-    public void TasksAfterShutdownAreCompleteOrThrowException()
+    public void TasksSubmitedBerforeShutdownAreCompletedAfterShutdownOrThrowException()
     {
-        List<IMyTask<int>> tasks = new ();
+        List<IMyTask<int>> tasks = new();
         var expected = 1;
         for (var i = 0; i < 2 * threadPool.ThreadCount; ++i)
         {
-            threadPool.Submit(() => 
+            threadPool.Submit(() =>
             {
                 Thread.Sleep(100);
                 return 1;

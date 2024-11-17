@@ -1,6 +1,8 @@
-﻿// <copyright file="MyThreadPool.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
-// </copyright>
+﻿// Copyright (c) 2024
+//
+// Use of this source code is governed by an MIT license
+// that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT.
 
 namespace MyThreadPool;
 
@@ -14,6 +16,8 @@ public class MyThreadPool
     private readonly ConcurrentQueue<Action> tasks = new ();
     private readonly Thread[] threads;
     private readonly CancellationTokenSource cancellationTokenSource = new ();
+    private readonly ManualResetEvent shutdownEvent = new (true);
+    private readonly AutoResetEvent wakeUp = new (false);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MyThreadPool"/> class with specified number of running threads.
@@ -30,17 +34,7 @@ public class MyThreadPool
         this.threads = new Thread[this.ThreadCount];
         for (var i = 0; i < this.ThreadCount; ++i)
         {
-            this.threads[i] = new (() =>
-            {
-                var cancellationToken = this.cancellationTokenSource.Token;
-                while (!this.cancellationTokenSource.IsCancellationRequested)
-                {
-                    if (this.tasks.TryDequeue(out Action? task))
-                    {
-                        task();
-                    }
-                }
-            });
+            this.threads[i] = new (this.Worker);
         }
 
         foreach (var thread in this.threads)
@@ -55,14 +49,25 @@ public class MyThreadPool
     public int ThreadCount { get; private set; }
 
     /// <summary>
-    /// Shutdowns treadpool. All tasks that were started will be completed, the rest will throw exception when getting result.
+    /// Shuts down treadpool. All tasks that were submitted before shutdown will be completed, the rest will throw exception when getting result.
     /// </summary>
     public void Shutdown()
     {
-        this.cancellationTokenSource.Cancel();
-        for (var i = 0; i < this.ThreadCount; ++i)
+        if (this.cancellationTokenSource.IsCancellationRequested)
         {
-            this.threads[i].Join();
+            return;
+        }
+
+        this.shutdownEvent.Reset();
+        if (!this.cancellationTokenSource.IsCancellationRequested)
+        {
+            this.cancellationTokenSource.Cancel();
+            this.shutdownEvent.Set();
+            for (var i = 0; i < this.ThreadCount; ++i)
+            {
+                this.threads[i].Interrupt();
+                this.threads[i].Join();
+            }
         }
     }
 
@@ -74,31 +79,46 @@ public class MyThreadPool
     /// <returns><see cref="IMyTask"/> for the given function.</returns>
     public IMyTask<T> Submit<T>(Func<T> task)
     {
+        this.shutdownEvent.WaitOne();
         if (this.cancellationTokenSource.IsCancellationRequested)
         {
             throw new OperationCanceledException("Threadpool was shut down!");
         }
 
-        var newMyTask = new MyTask<T>(this, task, this.cancellationTokenSource.Token);
-        this.tasks.Enqueue(() => newMyTask.Start());
+        var newMyTask = new MyTask<T>(this, task, this.cancellationTokenSource.Token, this.shutdownEvent);
+        this.tasks.Enqueue(newMyTask.Start);
+        this.wakeUp.Set();
+
         return newMyTask;
     }
 
-    private void QueryContinuation(Action continuation)
+    private void Worker()
     {
-        if (this.cancellationTokenSource.IsCancellationRequested)
+        while (true)
         {
-            throw new OperationCanceledException("Threadpool was shut down!");
-        }
+            try
+            {
+                this.wakeUp.WaitOne();
+            }
+            catch (ThreadInterruptedException)
+            {
+                break;
+            }
 
-        this.tasks.Enqueue(continuation);
+            if (this.tasks.TryDequeue(out var task))
+            {
+                this.wakeUp.Set();
+                task();
+            }
+        }
     }
 
-    private class MyTask<TResult>(MyThreadPool threadPool, Func<TResult> func, CancellationToken cancellationToken) : IMyTask<TResult>
+    private class MyTask<TResult>(MyThreadPool threadPool, Func<TResult> func, CancellationToken cancellationToken, ManualResetEvent shutdownEvent) : IMyTask<TResult>
     {
         private readonly Func<TResult> func = func;
         private readonly object lockObject = new ();
-        private readonly ConcurrentQueue<Action> continueWithTasks = new ();
+        private readonly ManualResetEvent shutdownEvent = shutdownEvent;
+        private readonly Queue<Action> continueWithTasks = new ();
         private readonly MyThreadPool threadPool = threadPool;
         private readonly CancellationToken cancellationToken = cancellationToken;
         private AggregateException? aggregateException;
@@ -110,7 +130,11 @@ public class MyThreadPool
             {
                 if (!this.IsCompleted)
                 {
-                    this.cancellationToken.ThrowIfCancellationRequested();
+                    if (this.cancellationToken.IsCancellationRequested)
+                    {
+                        throw new OperationCanceledException("Thread pool was shut down!");
+                    }
+
                     this.Start();
                 }
 
@@ -126,47 +150,59 @@ public class MyThreadPool
 
         public bool IsCompleted { get; private set; }
 
-        public IMyTask<TNewResult> ContinueWith<TNewResult>(Func<TResult?, TNewResult> func)
+        public IMyTask<TNewResult> ContinueWith<TNewResult>(Func<TResult?, TNewResult?> func)
         {
-            this.cancellationToken.ThrowIfCancellationRequested();
+            this.shutdownEvent.WaitOne();
+            if (this.cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException("Threadpool was shut down!");
+            }
+
             var newFunc = () => func(this.Result);
-            var newMyTask = new MyTask<TNewResult>(this.threadPool, newFunc, this.cancellationToken);
             if (this.IsCompleted)
             {
-                this.threadPool.QueryContinuation(newMyTask.Start);
+                return this.threadPool.Submit(newFunc);
             }
-            else
-            {
-                this.continueWithTasks.Enqueue(() => this.threadPool.QueryContinuation(newMyTask.Start));
-            }
+
+            var newMyTask = new MyTask<TNewResult>(this.threadPool, newFunc, this.cancellationToken, this.shutdownEvent) as IMyTask<TNewResult>;
+            this.continueWithTasks.Enqueue(() => this.threadPool.Submit(() => newMyTask.Result));
 
             return newMyTask;
         }
 
         public void Start()
         {
-            if (!this.IsCompleted)
+            if (this.IsCompleted)
             {
-                lock (this.lockObject)
+                return;
+            }
+
+            lock (this.lockObject)
+            {
+                if (!this.IsCompleted)
                 {
-                    if (!this.IsCompleted)
+                    try
                     {
-                        try
+                        this.Result = this.func();
+                    }
+                    catch (Exception e)
+                    {
+                        this.aggregateException = new ("Task failed", e);
+                    }
+                    finally
+                    {
+                        this.IsCompleted = true;
+                        while (this.continueWithTasks.Count > 0)
                         {
-                            this.Result = this.func();
-                        }
-                        catch (Exception e)
-                        {
-                            this.aggregateException = new ("Task failed", e);
-                        }
-                        finally
-                        {
-                            this.IsCompleted = true;
-                            while (!this.continueWithTasks.IsEmpty && !this.cancellationToken.IsCancellationRequested)
+                            if (this.continueWithTasks.TryDequeue(out var continueWithTask))
                             {
-                                if (this.continueWithTasks.TryDequeue(out Action? continueWithTask))
+                                try
                                 {
                                     continueWithTask();
+                                }
+                                catch (OperationCanceledException)
+                                {
+                                    break;
                                 }
                             }
                         }

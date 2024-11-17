@@ -1,6 +1,8 @@
-// <copyright file="IMyTask.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
-// </copyright>
+// Copyright (c) 2024
+//
+// Use of this source code is governed by an MIT license
+// that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT.
 
 namespace MyThreadPool;
 
@@ -26,5 +28,5 @@ public interface IMyTask<TResult>
     /// <typeparam name="TNewResult">Type of the result of the continuation.</typeparam>
     /// <param name="func">Continaution to evaluate.</param>
     /// <returns>Task containing continuation.</returns>
-    public IMyTask<TNewResult> ContinueWith<TNewResult>(Func<TResult?, TNewResult> func);
+    public IMyTask<TNewResult> ContinueWith<TNewResult>(Func<TResult?, TNewResult?> func);
 }
