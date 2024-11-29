@@ -173,7 +173,7 @@ public class Tests
     public async Task SubmitAndShutdownFromMultipleThreadsPerformsExpectedResults()
     {
         var manualResetEvent = new ManualResetEvent(false);
-        var expected = 50 * 99;
+        var expected = 50 * 101;
         var actual = 0;
 
         var submitTask = Task.Run(() =>
