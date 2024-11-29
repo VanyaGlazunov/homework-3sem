@@ -31,9 +31,9 @@ public class MyThreadPool
             throw new ArgumentException("number of threads must be postive number!", nameof(numberOfThreads));
         }
 
-        this.ThreadCount = numberOfThreads;
-        this.threads = new Thread[this.ThreadCount];
-        for (var i = 0; i < this.ThreadCount; ++i)
+        this.ThreadsCount = numberOfThreads;
+        this.threads = new Thread[this.ThreadsCount];
+        for (var i = 0; i < this.ThreadsCount; ++i)
         {
             this.threads[i] = new (this.Worker);
         }
@@ -47,28 +47,27 @@ public class MyThreadPool
     /// <summary>
     /// Gets the number of threads that are currently running.
     /// </summary>
-    public int ThreadCount { get; private set; }
+    public int ThreadsCount { get; private set; }
 
     /// <summary>
     /// Shuts down treadpool. All tasks that were submitted before shutdown will be completed.
     /// </summary>
     public void Shutdown()
     {
+        this.shutdownEvent.WaitOne();
         if (this.cancellationTokenSource.IsCancellationRequested)
         {
             return;
         }
 
         this.shutdownEvent.Reset();
-        if (!this.cancellationTokenSource.IsCancellationRequested)
+        this.cancellationTokenSource.Cancel();
+        this.shutdownEvent.Set();
+
+        this.cancelEvent.Set();
+        for (var i = 0; i < this.ThreadsCount; ++i)
         {
-            this.cancellationTokenSource.Cancel();
-            this.shutdownEvent.Set();
-            this.cancelEvent.Set();
-            for (var i = 0; i < this.ThreadCount; ++i)
-            {
-                this.threads[i].Join();
-            }
+            this.threads[i].Join();
         }
     }
 

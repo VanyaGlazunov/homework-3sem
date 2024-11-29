@@ -26,7 +26,7 @@ public class Tests
         HashSet<Thread?> threads = [];
         threadPool = new(n);
         List<IMyTask<Thread>> tasks = [];
-        ManualResetEvent manualResetEvent = new (false);
+        ManualResetEvent manualResetEvent = new(false);
         for (var i = 0; i < 2 * n; ++i)
         {
             tasks.Add(threadPool.Submit(() =>
@@ -57,7 +57,7 @@ public class Tests
     public void SubmitMultipleTasksReturnsExpectedResult()
     {
         List<IMyTask<int>> tasks = [];
-        for (var i = 0; i < threadPool.ThreadCount; ++i)
+        for (var i = 0; i < threadPool.ThreadsCount; ++i)
         {
             var localI = i;
             var task = threadPool.Submit(() =>
@@ -67,7 +67,7 @@ public class Tests
             tasks.Add(task);
         }
         Thread.Sleep(100);
-        for (var i = 0; i < threadPool.ThreadCount; ++i)
+        for (var i = 0; i < threadPool.ThreadsCount; ++i)
         {
             Assert.That(tasks[i].Result, Is.EqualTo(i));
         }
@@ -85,14 +85,14 @@ public class Tests
     {
         List<IMyTask<int>> tasks = [];
         var task = threadPool.Submit(() => 2);
-        for (var i = 0; i < threadPool.ThreadCount; ++i)
+        for (var i = 0; i < threadPool.ThreadsCount; ++i)
         {
             var localI = i;
             var continueTask = task.ContinueWith(x => localI * x);
             tasks.Add(continueTask);
         }
         Thread.Sleep(100);
-        for (var i = 0; i < threadPool.ThreadCount; ++i)
+        for (var i = 0; i < threadPool.ThreadsCount; ++i)
         {
             Assert.That(tasks[i].Result, Is.EqualTo(2 * i));
         }
@@ -119,7 +119,7 @@ public class Tests
     public void TasksSubmitedBerforeShutdownAreCompletedAfterShutdown()
     {
         List<IMyTask<int>> tasks = new();
-        for (var i = 0; i < 2 * threadPool.ThreadCount; ++i)
+        for (var i = 0; i < 2 * threadPool.ThreadsCount; ++i)
         {
             threadPool.Submit(() =>
             {
@@ -132,5 +132,79 @@ public class Tests
         {
             Assert.That(task.IsCompleted, Is.True);
         }
+    }
+
+    [Test]
+    public void SubmitAndContinueWithFromMultipleThreadsPerformsExpectedResults()
+    {
+        var expected = 10;
+        var threadsCount = 6;
+        var actual = new IMyTask<int>[threadsCount];
+        var threads = new Thread[threadsCount];
+        var manualResetEvent = new ManualResetEvent(false);
+
+        for (var i = 0; i < threadsCount; ++i)
+        {
+            var localI = i;
+            threads[i] = new(() =>
+            {
+                manualResetEvent.WaitOne();
+
+                actual[localI] = threadPool.Submit(() => 5).ContinueWith(r => 2 * r);
+            });
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Start();
+        }
+
+        manualResetEvent.Set();
+
+        foreach (var thread in threads)
+        {
+            thread.Join();
+        }
+
+        Assert.That(actual.All(r => r.Result == expected), Is.True);
+    }
+
+    [Test]
+    public async Task SubmitAndShutdownFromMultipleThreadsPerformsExpectedResults()
+    {
+        var manualResetEvent = new ManualResetEvent(false);
+        var expected = 50 * 99;
+        var actual = 0;
+
+        var submitTask = Task.Run(() =>
+        {
+            manualResetEvent.WaitOne();
+            return threadPool.Submit(() => Enumerable.Range(1, 100).Sum());
+        });
+
+        var firstShutdown = Task.Run(() =>
+        {
+            manualResetEvent.WaitOne();
+            threadPool.Shutdown();
+        });
+
+        var secondShutdown = Task.Run(() =>
+        {
+            manualResetEvent.WaitOne();
+            threadPool.Shutdown();
+        });
+
+        manualResetEvent.Set();
+
+        try
+        {
+            actual = (await submitTask).Result;
+        }
+        catch (OperationCanceledException)
+        {
+            Assert.Pass();
+        }
+
+        Assert.That(actual, Is.EqualTo(expected));
     }
 }
