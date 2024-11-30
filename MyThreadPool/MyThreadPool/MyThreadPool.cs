@@ -11,7 +11,7 @@ using System.Collections.Concurrent;
 /// <summary>
 /// Provides a pool of threads that can be used to execute tasks asynchronously.
 /// </summary>
-public class MyThreadPool
+public class MyThreadPool : IDisposable
 {
     private readonly ConcurrentQueue<Action> tasks = new ();
     private readonly Thread[] threads;
@@ -69,6 +69,15 @@ public class MyThreadPool
         {
             this.threads[i].Join();
         }
+    }
+
+    public void Dispose()
+    {
+        this.Shutdown();
+
+        this.shutdownEvent.Dispose();
+        this.wakeUpEvent.Dispose();
+        this.cancelEvent.Dispose();
     }
 
     /// <summary>
