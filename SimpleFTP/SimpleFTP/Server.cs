@@ -1,0 +1,90 @@
+﻿using System.Net;
+using System.Net.Sockets;
+
+namespace SimpleFTP;
+
+/// <summary>
+/// Represents server that provides simple file transportation protocol.
+/// </summary>
+/// <param name="port">Port that server will listen to.</param>
+public class FTPServer(int port)
+{
+    private readonly TcpListener listener = new (IPAddress.Any, port);
+    private readonly CancellationTokenSource cancellationTokenSource = new ();
+
+    /// <summary>
+    /// Starts listening for incoming server requests.
+    /// </summary>
+    public async void Start()
+    {
+        this.listener.Start();
+        var tasks = new List<Task>();
+        while (!this.cancellationTokenSource.IsCancellationRequested)
+        {
+            var client = await this.listener.AcceptTcpClientAsync();
+            tasks.Add(this.AddRequest(client));
+        }
+
+        Task.WaitAll([.. tasks]);
+    }
+
+    /// <summary>
+    /// Stops server.
+    /// </summary>
+    public void Stop()
+    {
+        this.cancellationTokenSource.Cancel();
+        this.listener.Stop();
+    }
+
+    private async Task AddRequest(TcpClient client)
+    {
+        using var stream = client.GetStream();
+        using var reader = new StreamReader(stream);
+        using var writer = new StreamWriter(stream) { AutoFlush = true };
+        var data = await reader.ReadLineAsync();
+
+        if (data != null)
+        {
+            if (data[0] == '1')
+            {
+                await this.ListRequest(writer, data[2..]);
+            }
+
+            if (data[0] == '2')
+            {
+                await this.GetRequest(writer, data[2..]);
+            }
+        }
+    }
+
+    private async Task ListRequest(StreamWriter writer, string path)
+    {
+        if (!Directory.Exists(path))
+        {
+            await writer.WriteLineAsync("-1 ");
+            return;
+        }
+
+        var list = Directory.GetFileSystemEntries(path);
+        await writer.WriteAsync($"{list.Length}");
+        foreach (var entry in list)
+        {
+            await writer.WriteAsync($" {entry} {Directory.Exists(Path.Combine(path, entry))}");
+        }
+
+        await writer.WriteAsync("\n");
+    }
+
+    private async Task GetRequest(StreamWriter writer, string path)
+    {
+        if (!File.Exists(path))
+        {
+            await writer.WriteLineAsync("-1 ");
+            return;
+        }
+
+        var bytes = await File.ReadAllBytesAsync(path);
+        await writer.WriteLineAsync($"{bytes.Length} {bytes}\n");
+    }
+}
