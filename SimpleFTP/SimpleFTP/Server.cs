@@ -1,13 +1,20 @@
-﻿using System.Net;
-using System.Net.Sockets;
+﻿// Copyright (c) 2024
+//
+// Use of this source code is governed by an MIT license
+// that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT.
 
 namespace SimpleFTP;
+
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 
 /// <summary>
 /// Represents server that provides simple file transportation protocol.
 /// </summary>
 /// <param name="port">Port that server will listen to.</param>
-public class FTPServer(int port)
+public class FTPServer(int port) : IDisposable
 {
     private readonly TcpListener listener = new (IPAddress.Any, port);
     private readonly CancellationTokenSource cancellationTokenSource = new ();
@@ -26,15 +33,22 @@ public class FTPServer(int port)
         }
 
         Task.WaitAll([.. tasks]);
+        this.listener.Stop();
     }
 
     /// <summary>
-    /// Stops server.
+    /// Stops the server.
     /// </summary>
     public void Stop()
     {
         this.cancellationTokenSource.Cancel();
-        this.listener.Stop();
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        this.Stop();
+        this.listener.Dispose();
     }
 
     private async Task AddRequest(TcpClient client)
@@ -43,7 +57,6 @@ public class FTPServer(int port)
         using var reader = new StreamReader(stream);
         using var writer = new StreamWriter(stream) { AutoFlush = true };
         var data = await reader.ReadLineAsync();
-
         if (data != null)
         {
             if (data[0] == '1')
@@ -70,7 +83,7 @@ public class FTPServer(int port)
         await writer.WriteAsync($"{list.Length}");
         foreach (var entry in list)
         {
-            await writer.WriteAsync($" {entry} {Directory.Exists(Path.Combine(path, entry))}");
+            await writer.WriteAsync($" {entry} {Directory.Exists(entry)}");
         }
 
         await writer.WriteAsync("\n");
@@ -85,6 +98,6 @@ public class FTPServer(int port)
         }
 
         var bytes = await File.ReadAllBytesAsync(path);
-        await writer.WriteLineAsync($"{bytes.Length} {bytes}\n");
+        await writer.WriteLineAsync($"{bytes.Length} {Encoding.UTF8.GetString(bytes)}");
     }
 }
