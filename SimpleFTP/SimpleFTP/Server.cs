@@ -87,7 +87,7 @@ public class FTPServer(int port) : IDisposable
             await writer.WriteAsync($" {entry} {Directory.Exists(entry)}");
         }
 
-        await writer.WriteAsync(Environment.NewLine);
+        await writer.WriteAsync("\n");
     }
 
     private async Task GetRequest(StreamWriter writer, string path)
