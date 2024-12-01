@@ -9,6 +9,7 @@ namespace SimpleFTP;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Xml;
 
 /// <summary>
 /// Represents server that provides simple file transportation protocol.
@@ -75,7 +76,7 @@ public class FTPServer(int port) : IDisposable
     {
         if (!Directory.Exists(path))
         {
-            await writer.WriteLineAsync("-1 ");
+            await writer.WriteAsync("-1 \n");
             return;
         }
 
@@ -86,18 +87,18 @@ public class FTPServer(int port) : IDisposable
             await writer.WriteAsync($" {entry} {Directory.Exists(entry)}");
         }
 
-        await writer.WriteAsync("\n");
+        await writer.WriteAsync(Environment.NewLine);
     }
 
     private async Task GetRequest(StreamWriter writer, string path)
     {
         if (!File.Exists(path))
         {
-            await writer.WriteLineAsync("-1 ");
+            await writer.WriteAsync("-1 \n");
             return;
         }
 
         var bytes = await File.ReadAllBytesAsync(path);
-        await writer.WriteLineAsync($"{bytes.Length} {Encoding.UTF8.GetString(bytes)}");
+        await writer.WriteAsync($"{bytes.Length} {Encoding.UTF8.GetString(bytes)}\n");
     }
 }
