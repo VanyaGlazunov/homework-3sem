@@ -6,6 +6,7 @@
 
 namespace SimpleFTP.Test;
 
+using System.Diagnostics;
 using System.Net;
 
 public class Tests
@@ -78,14 +79,14 @@ public class Tests
         var emptyFile = Path.Combine(testFilesPath, "empty.txt");
         var actual = client.Get(emptyFile);
         var expected = "0 \n";
-        Assert.That(actual.Result, Is.EqualTo(expected), emptyFile);
+        Assert.That(actual.Result, Is.EqualTo(expected));
     }
 
     [Test]
     public void ListGetFromMultipleClientsShouldReturnExpectedResults()
     {
         var manualResetEvent = new ManualResetEvent(false);
-        var clientsCount = 4;
+        var clientsCount = 10;
         var getResults = new string[clientsCount];
         var listResults = new string[clientsCount];
         var getpath = Path.Combine(testFilesPath, "42.txt");
@@ -94,21 +95,28 @@ public class Tests
         var listExpected = $"1 {Path.Combine(testFilesPath, "subdir1", "sub.txt")} False\n";
         var tasks = new Task[clientsCount];
 
+        var stopWatch = new Stopwatch();
+        var delay = 200;
+
         for (var i = 0; i < clientsCount; ++i)
         {
             var localI = i;
             tasks[i] = Task.Run(async () => {
                 manualResetEvent.WaitOne();
-                
+                await Task.Delay(delay);
                 var client = new FTPClient(EP);
                 getResults[localI] = await client.Get(getpath);
                 listResults[localI] = await client.List(listpath);
             });
         }
 
+        stopWatch.Start();
         manualResetEvent.Set();
 
         Task.WaitAll(tasks);
+        stopWatch.Stop();
+
+        Assert.That(stopWatch.ElapsedMilliseconds, Is.AtMost(2 * delay));
 
         Assert.Multiple(() => {
             Assert.That(listResults.All(x => x == listExpected), Is.True);

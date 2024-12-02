@@ -9,7 +9,6 @@ namespace SimpleFTP;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Xml;
 
 /// <summary>
 /// Represents server that provides simple file transportation protocol.
@@ -29,8 +28,15 @@ public class FTPServer(int port) : IDisposable
         var tasks = new List<Task>();
         while (!this.cancellationTokenSource.IsCancellationRequested)
         {
-            var client = await this.listener.AcceptTcpClientAsync();
-            tasks.Add(this.AddRequest(client));
+            try
+            {
+                var client = await this.listener.AcceptTcpClientAsync(this.cancellationTokenSource.Token);
+                tasks.Add(this.AddRequest(client));
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
         }
 
         Task.WaitAll([.. tasks]);
