@@ -6,29 +6,45 @@
 
 namespace MyNUnit;
 
+/// <summary>
+/// Attribute for methods that are tests.
+/// </summary>
 [AttributeUsage(AttributeTargets.Method)]
 public class TestAttribute : Attribute
 {
-    public string? Ingore;
-    public Type? Expected;
-
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TestAttribute"/> class.
+    /// </summary>
     public TestAttribute()
     {
     }
 
-    public TestAttribute(string ignore, Type exceptionType)
-    {
-        this.Ingore = ignore;
-        this.Expected = exceptionType;
-    }
-
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TestAttribute"/> class with specified reason for ignoring test.
+    /// </summary>
+    /// <param name="ignore">Reason for ignoring the test.</param>
     public TestAttribute(string ignore)
     {
         this.Ingore = ignore;
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TestAttribute"/> class
+    /// with specified type of exception expected to be thrown during test.
+    /// </summary>
+    /// <param name="exceptionType">Type of expected excetption.</param>
     public TestAttribute(Type exceptionType)
     {
         this.Expected = exceptionType;
     }
+
+    /// <summary>
+    /// Gets or sets reason for ignoring the test.
+    /// </summary>
+    public string? Ingore { get; set; }
+
+    /// <summary>
+    /// Gets or sets type of exception expected to be thrown during test.
+    /// </summary>
+    public Type? Expected { get; set; }
 }

@@ -29,13 +29,13 @@ if (!Path.Exists(path))
 }
 
 Console.WriteLine("Starting test execution, please wait");
-Parallel.ForEach(Directory.GetFiles(path), async entry =>
+Parallel.ForEach(Directory.GetFiles(path), entry =>
 {
     if (entry.EndsWith(".dll") || entry.EndsWith(".exe"))
     {
         var assembly = Assembly.LoadFrom(entry);
 
-        var report = await TestRunner.RunTests(assembly);
+        var report = TestRunner.RunTests(assembly);
         foreach (var (name, tests) in report.Keys.Zip(report.Values))
         {
             Console.WriteLine($"Tests in {name}");

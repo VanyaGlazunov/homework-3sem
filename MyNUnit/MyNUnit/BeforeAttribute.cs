@@ -6,6 +6,9 @@
 
 namespace MyNUnit;
 
+/// <summary>
+/// Attriubte for method indicating that it should be invoking before every test in class.
+/// </summary>
 [AttributeUsage(AttributeTargets.Method)]
 public class BeforeAttribute : Attribute
 {

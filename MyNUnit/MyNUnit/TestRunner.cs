@@ -10,9 +10,17 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Reflection;
 
+/// <summary>
+/// Provides methods to invoke test methods in .NET assemblies.
+/// </summary>
 public static class TestRunner
 {
-    public static async Task<Dictionary<string, List<TestResult>>> RunTests(Assembly assembly)
+    /// <summary>
+    /// Runs all tests in specified assembly.
+    /// </summary>
+    /// <param name="assembly">Assembly to test.</param>
+    /// <returns>Dictionary in which keys are test class names and values are results of tests methods.</returns>
+    public static Dictionary<string, List<TestResult>> RunTests(Assembly assembly)
     {
         var types = assembly.GetTypes();
         var beforeClassMethods = types.SelectMany(t => t.GetMethods()).
@@ -27,7 +35,7 @@ public static class TestRunner
             {
                 method.Invoke(null, null);
             });
-            var results = await RunTestsInClass(type);
+            var results = RunTestsInClass(type);
             Parallel.ForEach(afterClassMethods, method =>
             {
                 method.Invoke(null, null);
@@ -39,7 +47,12 @@ public static class TestRunner
         return report;
     }
 
-    public static async Task<List<TestResult>> RunTestsInClass(Type testType)
+    /// <summary>
+    /// Runs tests in specified class.
+    /// </summary>
+    /// <param name="testType">Class to run tests in.</param>
+    /// <returns>Results of all tests in class.</returns>
+    public static List<TestResult> RunTestsInClass(Type testType)
     {
         var methods = testType.GetMethods();
         var tests = methods.Where(m => m.GetCustomAttributes(typeof(TestAttribute), false).Length > 0);
@@ -47,7 +60,7 @@ public static class TestRunner
         var after = methods.Where(m => m.GetCustomAttributes(typeof(AfterAttribute), false).Length > 0);
         var testClass = Activator.CreateInstance(testType);
         var results = new ConcurrentBag<TestResult>();
-        Parallel.ForEach(tests, async test =>
+        Parallel.ForEach(tests, test =>
         {
             Parallel.ForEach(before, method =>
             {
@@ -56,7 +69,7 @@ public static class TestRunner
             var attribute = test.GetCustomAttribute(typeof(TestAttribute)) as TestAttribute;
             if (attribute != null)
             {
-                results.Add(await RunTest(test, testClass, attribute));
+                results.Add(RunTest(test, testClass, attribute));
             }
 
             Parallel.ForEach(after, method =>
@@ -65,10 +78,17 @@ public static class TestRunner
             });
         });
 
-        return[.. results];
+        return [.. results];
     }
 
-    public static async Task<TestResult> RunTest(MethodInfo test, object? testClass, TestAttribute attribute)
+/// <summary>
+/// Runs specified test method in specified class.
+/// </summary>
+/// <param name="test">Test method to run.</param>
+/// <param name="testClass">Class containing test method.</param>
+/// <param name="attribute">Test attribute of specified test method.</param>
+/// <returns>Results of the test.</returns>
+    public static TestResult RunTest(MethodInfo test, object? testClass, TestAttribute attribute)
     {
         if (attribute.Ingore != null)
         {

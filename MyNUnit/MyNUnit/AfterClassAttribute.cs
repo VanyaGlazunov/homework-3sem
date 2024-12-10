@@ -6,6 +6,9 @@
 
 namespace MyNUnit;
 
+/// <summary>
+/// Attribute for static method indicating that it should be invoked after all tests in class.
+/// </summary>
 [AttributeUsage(AttributeTargets.Method)]
 public class AfterClassAttribute : Attribute
 {

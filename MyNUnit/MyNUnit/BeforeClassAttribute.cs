@@ -6,6 +6,9 @@
 
 namespace MyNUnit;
 
+/// <summary>
+/// Attribute for static method indicating that it should be invoked before tests in class.
+/// </summary>
 [AttributeUsage(AttributeTargets.Method)]
 public class BeforeClassAttribute : Attribute
 {

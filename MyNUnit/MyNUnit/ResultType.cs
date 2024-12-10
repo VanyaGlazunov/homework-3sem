@@ -6,9 +6,23 @@
 
 namespace MyNUnit;
 
+/// <summary>
+/// Represents possible outcomes for test methods.
+/// </summary>
 public enum ResultType
 {
+    /// <summary>
+    /// Test was ignored.
+    /// </summary>
     Ignored,
+
+    /// <summary>
+    /// Test passed successfully.
+    /// </summary>
     Passed,
+
+    /// <summary>
+    /// Test failed.
+    /// </summary>
     Failed,
 }

@@ -8,10 +8,10 @@ public class Tests
     private Dictionary<string, List<TestResult>>? testResults;
 
     [OneTimeSetUp]
-    public async Task Setup()
+    public void Setup()
     {
         assembly = Assembly.LoadFrom("../../../../TestProject/bin/Debug/net8.0/TestProject.dll");
-        testResults = await TestRunner.RunTests(assembly);
+        testResults = TestRunner.RunTests(assembly);
     }
 
     [NUnit.Framework.Test]

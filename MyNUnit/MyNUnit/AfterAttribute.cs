@@ -6,6 +6,9 @@
 
 namespace MyNUnit;
 
+/// <summary>
+/// Attribute for methods indicating they should be invoked after every test in class.
+/// </summary>
 [AttributeUsage(AttributeTargets.Method)]
 public class AfterAttribute : Attribute
 {
