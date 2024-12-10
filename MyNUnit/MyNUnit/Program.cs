@@ -64,6 +64,8 @@ Parallel.ForEach(Directory.GetFiles(path), entry =>
 
                         break;
                 }
+
+                Console.ResetColor();
             }
         }
     }
