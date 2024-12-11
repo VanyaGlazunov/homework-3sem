@@ -58,24 +58,25 @@ public static class TestRunner
         var tests = methods.Where(m => m.GetCustomAttributes(typeof(TestAttribute), false).Length > 0);
         var before = methods.Where(m => m.GetCustomAttributes(typeof(BeforeAttribute), false).Length > 0);
         var after = methods.Where(m => m.GetCustomAttributes(typeof(AfterAttribute), false).Length > 0);
-        var testClass = Activator.CreateInstance(testType);
         var results = new ConcurrentBag<TestResult>();
         Parallel.ForEach(tests, test =>
         {
-            Parallel.ForEach(before, method =>
+            var testClass = Activator.CreateInstance(testType);
+            foreach (var method in before)
             {
                 method.Invoke(testClass, null);
-            });
+            }
+
             var attribute = test.GetCustomAttribute(typeof(TestAttribute)) as TestAttribute;
             if (attribute != null)
             {
                 results.Add(RunTest(test, testClass, attribute));
             }
 
-            Parallel.ForEach(after, method =>
+            foreach (var method in after)
             {
                 method.Invoke(testClass, null);
-            });
+            }
         });
 
         return [.. results];
