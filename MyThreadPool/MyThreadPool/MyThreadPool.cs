@@ -54,20 +54,20 @@ public class MyThreadPool : IDisposable
     /// </summary>
     public void Shutdown()
     {
-        this.shutdownEvent.WaitOne();
-        if (this.cancellationTokenSource.IsCancellationRequested)
+        lock (this.tasks)
         {
-            return;
-        }
+            if (this.cancellationTokenSource.IsCancellationRequested)
+            {
+                return;
+            }
 
-        this.shutdownEvent.Reset();
-        this.cancellationTokenSource.Cancel();
-        this.shutdownEvent.Set();
+            this.cancellationTokenSource.Cancel();
 
-        this.cancelEvent.Set();
-        for (var i = 0; i < this.ThreadsCount; ++i)
-        {
-            this.threads[i].Join();
+            this.cancelEvent.Set();
+            for (var i = 0; i < this.ThreadsCount; ++i)
+            {
+                this.threads[i].Join();
+            }
         }
     }
 
@@ -88,32 +88,30 @@ public class MyThreadPool : IDisposable
     /// <returns><see cref="IMyTask"/> for the given function.</returns>
     public IMyTask<T> Submit<T>(Func<T> task)
     {
-        this.shutdownEvent.WaitOne();
-        if (this.cancellationTokenSource.IsCancellationRequested)
+        lock (this.tasks)
         {
-            throw new OperationCanceledException("Threadpool was shut down!");
+            if (this.cancellationTokenSource.IsCancellationRequested)
+            {
+                throw new OperationCanceledException("Threadpool was shut down!");
+            }
+
+            var newMyTask = new MyTask<T>(this, task, this.cancellationTokenSource.Token, this.shutdownEvent);
+            this.tasks.Enqueue(newMyTask.Start);
+            this.wakeUpEvent.Set();
+
+            return newMyTask;
         }
-
-        var newMyTask = new MyTask<T>(this, task, this.cancellationTokenSource.Token, this.shutdownEvent);
-        this.tasks.Enqueue(newMyTask.Start);
-        this.wakeUpEvent.Set();
-
-        return newMyTask;
     }
 
     private void Worker()
     {
-        while (true)
+        while (!this.cancellationTokenSource.IsCancellationRequested)
         {
             WaitHandle.WaitAny([this.wakeUpEvent, this.cancelEvent]);
             if (this.tasks.TryDequeue(out var task))
             {
                 this.wakeUpEvent.Set();
                 task();
-            }
-            else if (this.cancellationTokenSource.IsCancellationRequested)
-            {
-                break;
             }
         }
     }
@@ -157,22 +155,24 @@ public class MyThreadPool : IDisposable
 
         public IMyTask<TNewResult> ContinueWith<TNewResult>(Func<TResult?, TNewResult?> func)
         {
-            this.shutdownEvent.WaitOne();
-            if (this.cancellationToken.IsCancellationRequested)
+            lock (this.threadPool.tasks)
             {
-                throw new OperationCanceledException("Threadpool was shut down!");
+                if (this.cancellationToken.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException("Threadpool was shut down!");
+                }
+
+                var newFunc = () => func(this.Result);
+                if (this.IsCompleted)
+                {
+                    return this.threadPool.Submit(newFunc);
+                }
+
+                var newMyTask = new MyTask<TNewResult>(this.threadPool, newFunc, this.cancellationToken, this.shutdownEvent) as IMyTask<TNewResult>;
+                this.continueWithTasks.Enqueue(() => this.threadPool.Submit(() => newMyTask.Result));
+
+                return newMyTask;
             }
-
-            var newFunc = () => func(this.Result);
-            if (this.IsCompleted)
-            {
-                return this.threadPool.Submit(newFunc);
-            }
-
-            var newMyTask = new MyTask<TNewResult>(this.threadPool, newFunc, this.cancellationToken, this.shutdownEvent) as IMyTask<TNewResult>;
-            this.continueWithTasks.Enqueue(() => this.threadPool.Submit(() => newMyTask.Result));
-
-            return newMyTask;
         }
 
         public void Start()
