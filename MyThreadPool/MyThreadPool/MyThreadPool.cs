@@ -88,6 +88,11 @@ public class MyThreadPool : IDisposable
     /// <returns><see cref="IMyTask"/> for the given function.</returns>
     public IMyTask<T> Submit<T>(Func<T> task)
     {
+        if (this.cancellationTokenSource.IsCancellationRequested)
+        {
+            throw new OperationCanceledException("Threadpool was shut down!");
+        }
+
         lock (this.tasks)
         {
             if (this.cancellationTokenSource.IsCancellationRequested)
